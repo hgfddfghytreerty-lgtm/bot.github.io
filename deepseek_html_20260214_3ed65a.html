@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Чат с админом</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--tg-theme-bg-color, #f2f2f2);
+            color: var(--tg-theme-text-color, #000);
+        }
+        .tabs {
+            display: flex;
+            background: var(--tg-theme-secondary-bg-color, #fff);
+            border-bottom: 1px solid var(--tg-theme-hint-color, #ccc);
+        }
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .tab.active {
+            border-bottom: 2px solid var(--tg-theme-button-color, #40a7e3);
+            color: var(--tg-theme-button-color, #40a7e3);
+        }
+        .content {
+            padding: 16px;
+        }
+        .hidden {
+            display: none;
+        }
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border: 1px solid var(--tg-theme-hint-color, #ccc);
+            border-radius: 8px;
+            background: var(--tg-theme-secondary-bg-color, #fff);
+            color: var(--tg-theme-text-color, #000);
+            box-sizing: border-box;
+        }
+        button {
+            background: var(--tg-theme-button-color, #40a7e3);
+            color: var(--tg-theme-button-text-color, #fff);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 8px;
+        }
+        .message {
+            background: var(--tg-theme-secondary-bg-color, #fff);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="tabs">
+        <div class="tab active" data-tab="chat">Чат</div>
+        <div class="tab" data-tab="tickets">Тикеты</div>
+        <div class="tab" data-tab="game">Игра</div>
+    </div>
+
+    <div id="chat" class="content">
+        <h3>Чат с администратором</h3>
+        <div id="chat-messages"></div>
+        <textarea id="chat-input" placeholder="Введите сообщение..." rows="3"></textarea>
+        <button id="send-chat">Отправить</button>
+    </div>
+
+    <div id="tickets" class="content hidden">
+        <h3>Мои тикеты</h3>
+        <div id="tickets-list"></div>
+        <h4>Создать новый тикет</h4>
+        <input type="text" id="ticket-title" placeholder="Тема">
+        <textarea id="ticket-desc" placeholder="Описание" rows="3"></textarea>
+        <button id="create-ticket">Создать тикет</button>
+    </div>
+
+    <div id="game" class="content hidden">
+        <h3>Угадай число</h3>
+        <p>Я загадал число от 1 до 10. Попробуй угадать!</p>
+        <input type="number" id="guess-input" min="1" max="10">
+        <button id="guess-btn">Проверить</button>
+        <p id="guess-result"></p>
+    </div>
+
+    <script>
+        const WebApp = window.Telegram.WebApp;
+        WebApp.expand(); // Разворачиваем на весь экран
+
+        // Переключение вкладок
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const tabName = tab.dataset.tab;
+                document.querySelectorAll('.content').forEach(c => c.classList.add('hidden'));
+                document.getElementById(tabName).classList.remove('hidden');
+            });
+        });
+
+        // Отправка сообщения в чат
+        document.getElementById('send-chat').addEventListener('click', () => {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (text) {
+                WebApp.sendData(JSON.stringify({
+                    action: 'send_message',
+                    text: text
+                }));
+                addMessage('Вы: ' + text);
+                input.value = '';
+            }
+        });
+
+        // Создание тикета
+        document.getElementById('create-ticket').addEventListener('click', () => {
+            const title = document.getElementById('ticket-title').value.trim();
+            const desc = document.getElementById('ticket-desc').value.trim();
+            if (title && desc) {
+                WebApp.sendData(JSON.stringify({
+                    action: 'new_ticket',
+                    title: title,
+                    description: desc
+                }));
+                document.getElementById('ticket-title').value = '';
+                document.getElementById('ticket-desc').value = '';
+                alert('Тикет создан! Ожидайте ответа.');
+            }
+        });
+
+        // Игра "Угадай число"
+        const secret = Math.floor(Math.random() * 10) + 1;
+        document.getElementById('guess-btn').addEventListener('click', () => {
+            const guess = parseInt(document.getElementById('guess-input').value);
+            const result = document.getElementById('guess-result');
+            if (guess === secret) {
+                result.textContent = '✅ Правильно! Ты выиграл!';
+                result.style.color = 'green';
+            } else if (guess < secret) {
+                result.textContent = '❌ Слишком мало';
+                result.style.color = 'red';
+            } else if (guess > secret) {
+                result.textContent = '❌ Слишком много';
+                result.style.color = 'red';
+            }
+        });
+
+        // Функция добавления сообщения в чат (локально)
+        function addMessage(msg) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = 'message';
+            div.textContent = msg;
+            container.appendChild(div);
+        }
+
+        // Здесь можно загрузить историю сообщений, если бот пришлёт их через start parameter или ещё как-то
+        // Для простоты пока опущено.
+    </script>
+</body>
+</html>
